@@ -1,0 +1,395 @@
+#include <Wire.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+#include <WiFi.h>
+#include <PubSubClient.h>
+#include <DHT.h>
+
+// Configuración de la pantalla OLED
+#define SCREEN_WIDTH 128
+#define SCREEN_HEIGHT 64
+#define OLED_RESET    -1 // No se usa el pin de reset
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
+
+// Configuración del WiFi
+const char* ssid = "ESTRELLITA12";
+const char* password = "1234567890";
+
+// Configuración del broker MQTT
+const char* mqttServer = "192.168.63.88"; // Broker MQTT
+const int mqttPort = 1883;
+const char* mqttTopicPulse = "esp32/pulso";
+const char* mqttTopicTemp = "esp32/temperatura";
+const char* mqttTopicLedControl = "esp32/ledControl"; // Nuevo tema para controlar el LED
+
+// Configuración del DHT11
+#define DHTPIN 4 // Pin de datos del DHT11
+#define DHTTYPE DHT11
+DHT dht(DHTPIN, DHTTYPE);
+
+// Pin para el sensor de pulso cardíaco
+const int pulsePin = 34; // D34 (GPIO34) en el ESP32
+
+// Pin del LED y Buzzer
+const int ledPin = 18;
+const int buzzerPin = 14;  // Pin D14 para el buzzer
+
+// Variables para el cálculo de BPM
+unsigned long startTime = 0;
+unsigned long currentTime = 0;
+int beatCount = 0;
+int BPM = 0;
+const int interval = 30000; // Intervalo de 30 segundos
+
+WiFiClient espClient;
+PubSubClient client(espClient);
+
+void setup() {
+  // Inicializa la pantalla OLED
+  if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
+    Serial.println(F("Error al inicializar la pantalla OLED"));
+    for (;;);
+  }
+  display.clearDisplay();
+
+  // Configura el pin del sensor de pulso
+  pinMode(pulsePin, INPUT);
+
+  // Configuración del LED y Buzzer
+  pinMode(ledPin, OUTPUT);
+  pinMode(buzzerPin, OUTPUT);
+  digitalWrite(ledPin, LOW); 
+  digitalWrite(buzzerPin, LOW);
+
+  // Inicializa la comunicación serie para depuración
+  Serial.begin(115200);
+
+  // Conectar al WiFi
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("Conectado al WiFi");
+
+  // Configurar el cliente MQTT
+  client.setServer(mqttServer, mqttPort);
+  client.setCallback(callback); // Asignar la función de callback para manejar mensajes entrantes
+
+  // Inicializar el sensor DHT11
+  dht.begin();
+}
+
+void reconnect() {
+  // Bucle hasta conectar
+  while (!client.connected()) {
+    Serial.print("Intentando conectar al MQTT...");
+    if (client.connect("ESP32Client")) {
+      Serial.println("Conectado");
+      // Suscribirse al tema de control del LED
+      client.subscribe(mqttTopicLedControl);
+    } else {
+      Serial.print("Error, rc=");
+      Serial.print(client.state());
+      Serial.println(" Intentando de nuevo en 5 segundos");
+      delay(5000);
+    }
+  }
+}
+
+void callback(char* topic, byte* payload, unsigned int length) {
+  // Convertir el mensaje a un string
+  String message;
+  for (int i = 0; i < length; i++) {
+    message += (char)payload[i];
+  }
+  
+  // Verificar si el mensaje es para controlar el LED
+  if (String(topic) == mqttTopicLedControl) {
+    if (message == "ON") {
+      digitalWrite(ledPin, HIGH);
+      digitalWrite(buzzerPin, HIGH); // Enciende el buzzer
+      Serial.println("LED y Buzzer encendidos desde MQTT");
+    } else if (message == "OFF") {
+      digitalWrite(ledPin, LOW);
+      digitalWrite(buzzerPin, LOW); // Apaga el buzzer
+      Serial.println("LED y Buzzer apagados desde MQTT");
+    }
+  }
+}
+
+void loop() {
+  // Asegúrate de que el cliente MQTT esté conectado
+  if (!client.connected()) {
+    reconnect();
+  }
+  client.loop();
+
+  // Leer la temperatura del sensor DHT11
+  // float temperature = dht.readTemperature();
+  // if (isnan(temperature)) {
+  //   Serial.println(F("Error al leer el sensor DHT11"));
+  //   return;
+  // }
+
+  // Lee el valor del sensor de pulso cardíaco
+  int pulseValue = analogRead(pulsePin);
+
+  // Umbral para detectar un latido (esto puede requerir ajuste)
+  int threshold = 512;
+
+  // Detectar si ocurre un latido
+  if (pulseValue > threshold) {
+    beatCount++;
+    delay(300); // Evitar contar múltiples pulsos por un solo latido
+  }
+
+  // Actualizar el BPM y la temperatura cada 30 segundos
+  currentTime = millis();
+  if (currentTime - startTime >= interval) {
+    // Calcular BPM basado en el número de latidos en los últimos 30 segundos
+    BPM = (beatCount * (60000 / interval));
+
+    // Reiniciar el contador y el tiempo
+    beatCount = 0;
+    startTime = currentTime;
+
+    // Enciende el LED y el Buzzer si el BPM es mayor o igual a 180
+    if (BPM >= 180) {
+      digitalWrite(ledPin, HIGH); // Enciende el LED
+      digitalWrite(buzzerPin, HIGH); // Enciende el buzzer
+    } else {
+      digitalWrite(buzzerPin, LOW); // Apaga el buzzer si el BPM baja de 180
+       digitalWrite(ledPin, LOW); // Enciende el LED
+    }
+
+    // Mostrar el BPM y la temperatura en la pantalla OLED
+    display.clearDisplay();
+    display.setTextSize(1); // Tamaño de texto pequeño para mayor espacio
+    display.setTextColor(SSD1306_WHITE);
+
+    // Mostrar el BPM en la primera línea
+    display.setCursor(0, 0); 
+    display.print("Pulso: ");
+    display.print(BPM);
+
+    // // Mostrar la temperatura en la segunda línea
+    // display.setCursor(0, 10); 
+    // display.print("Temp: ");
+    // display.print(temperature);
+    // display.print(" C");
+
+    display.display();
+
+    // Publicar solo el valor del BPM en el broker MQTT
+    char pulseMsg[10];
+    snprintf(pulseMsg, 10, "%d", BPM);
+    client.publish(mqttTopicPulse, pulseMsg);
+
+    // Publicar solo el valor de la temperatura en el broker MQTT
+    // char tempMsg[10];
+    // snprintf(tempMsg, 10, "%.2f", temperature);
+    // client.publish(mqttTopicTemp, tempMsg);
+
+    // Enviar el valor al puerto serie
+    Serial.print("BPM: ");
+    Serial.println(BPM);
+    Serial.print("Temperatura: ");
+ //   Serial.println(temperature);
+  }
+}
+
+// #include <Wire.h>
+// #include <Adafruit_GFX.h>
+// #include <Adafruit_SSD1306.h>
+// #include <WiFi.h>
+// #include <PubSubClient.h>
+// #include <DHT.h>
+
+// // Configuración de la pantalla OLED
+// #define SCREEN_WIDTH 128
+// #define SCREEN_HEIGHT 64
+// #define OLED_RESET    -1 // No se usa el pin de reset
+// Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
+
+// // Configuración del WiFi
+// const char* ssid = "ESTRELLITA12";
+// const char* password = "1234567890";
+
+// // Configuración del broker MQTT
+// const char* mqttServer = "192.168.0.16"; // Broker MQTT
+// const int mqttPort = 1883;
+// const char* mqttTopicPulse = "esp32/pulso";
+// const char* mqttTopicTemp = "esp32/temperatura";
+// const char* mqttTopicLedControl = "esp32/ledControl"; // Nuevo tema para controlar el LED
+
+// // Configuración del DHT11
+// #define DHTPIN 4 // Pin de datos del DHT11
+// #define DHTTYPE DHT11
+// DHT dht(DHTPIN, DHTTYPE);
+
+// // Pin para el sensor de pulso cardíaco
+// const int pulsePin = 34; // D34 (GPIO34) en el ESP32
+
+// // Pin del LED
+// const int ledPin = 18;
+
+// // Variables para el cálculo de BPM
+// unsigned long startTime = 0;
+// unsigned long currentTime = 0;
+// int beatCount = 0;
+// int BPM = 0;
+// const int interval = 30000; // Intervalo de 30 segundos
+
+// WiFiClient espClient;
+// PubSubClient client(espClient);
+
+// void setup() {
+//   // Inicializa la pantalla OLED
+//   if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
+//     Serial.println(F("Error al inicializar la pantalla OLED"));
+//     for (;;);
+//   }
+//   display.clearDisplay();
+
+//   // Configura el pin del sensor de pulso
+//   pinMode(pulsePin, INPUT);
+
+//   // Configuración del LED
+//   pinMode(ledPin, OUTPUT);
+//   digitalWrite(ledPin, LOW); 
+
+//   // Inicializa la comunicación serie para depuración
+//   Serial.begin(115200);
+
+//   // Conectar al WiFi
+//   WiFi.begin(ssid, password);
+//   while (WiFi.status() != WL_CONNECTED) {
+//     delay(500);
+//     Serial.print(".");
+//   }
+//   Serial.println("Conectado al WiFi");
+
+//   // Configurar el cliente MQTT
+//   client.setServer(mqttServer, mqttPort);
+//   client.setCallback(callback); // Asignar la función de callback para manejar mensajes entrantes
+
+//   // Inicializar el sensor DHT11
+//   dht.begin();
+// }
+
+// void reconnect() {
+//   // Bucle hasta conectar
+//   while (!client.connected()) {
+//     Serial.print("Intentando conectar al MQTT...");
+//     if (client.connect("ESP32Client")) {
+//       Serial.println("Conectado");
+//       // Suscribirse al tema de control del LED
+//       client.subscribe(mqttTopicLedControl);
+//     } else {
+//       Serial.print("Error, rc=");
+//       Serial.print(client.state());
+//       Serial.println(" Intentando de nuevo en 5 segundos");
+//       delay(5000);
+//     }
+//   }
+// }
+
+// void callback(char* topic, byte* payload, unsigned int length) {
+//   // Convertir el mensaje a un string
+//   String message;
+//   for (int i = 0; i < length; i++) {
+//     message += (char)payload[i];
+//   }
+  
+//   // Verificar si el mensaje es para controlar el LED
+//   if (String(topic) == mqttTopicLedControl) {
+//     if (message == "ON") {
+//       digitalWrite(ledPin, HIGH);
+//       Serial.println("LED encendido desde MQTT");
+//     } else if (message == "OFF") {
+//       digitalWrite(ledPin, LOW);
+//       Serial.println("LED apagado desde MQTT");
+//     }
+//   }
+// }
+
+// void loop() {
+//   // Asegúrate de que el cliente MQTT esté conectado
+//   if (!client.connected()) {
+//     reconnect();
+//   }
+//   client.loop();
+
+//   // Leer la temperatura del sensor DHT11
+//   float temperature = dht.readTemperature();
+//   if (isnan(temperature)) {
+//     Serial.println(F("Error al leer el sensor DHT11"));
+//     return;
+//   }
+
+//   // Lee el valor del sensor de pulso cardíaco
+//   int pulseValue = analogRead(pulsePin);
+
+//   // Umbral para detectar un latido (esto puede requerir ajuste)
+//   int threshold = 512;
+
+//   // Detectar si ocurre un latido
+//   if (pulseValue > threshold) {
+//     beatCount++;
+//     delay(300); // Evitar contar múltiples pulsos por un solo latido
+//   }
+
+//   // Actualizar el BPM y la temperatura cada 30 segundos
+//   currentTime = millis();
+//   if (currentTime - startTime >= interval) {
+//     // Calcular BPM basado en el número de latidos en los últimos 30 segundos
+//     BPM = (beatCount * (60000 / interval));
+
+//     // Reiniciar el contador y el tiempo
+//     beatCount = 0;
+//     startTime = currentTime;
+
+//     // Enciende el LED si el BPM es mayor o igual a 180 (esto no afectará el control manual)
+//     if (BPM >= 180) {
+//       digitalWrite(ledPin, HIGH); // Enciende el LED
+//     }
+
+//     // Mostrar el BPM y la temperatura en la pantalla OLED
+//     display.clearDisplay();
+//     display.setTextSize(1); // Tamaño de texto pequeño para mayor espacio
+//     display.setTextColor(SSD1306_WHITE);
+
+//     // Mostrar el BPM en la primera línea
+//     display.setCursor(0, 0); 
+//     display.print("Pulso: ");
+//     display.print(BPM);
+
+//     // Mostrar la temperatura en la segunda línea
+//     display.setCursor(0, 10); 
+//     display.print("Temp: ");
+//     display.print(temperature);
+//     display.print(" C");
+
+//     display.display();
+
+//     // Publicar solo el valor del BPM en el broker MQTT
+//     char pulseMsg[10];
+//     snprintf(pulseMsg, 10, "%d", BPM);
+//     client.publish(mqttTopicPulse, pulseMsg);
+
+//     // Publicar solo el valor de la temperatura en el broker MQTT
+//     char tempMsg[10];
+//     snprintf(tempMsg, 10, "%.2f", temperature);
+//     client.publish(mqttTopicTemp, tempMsg);
+
+//     // Enviar el valor al puerto serie
+//     Serial.print("BPM: ");
+//     Serial.println(BPM);
+//     Serial.print("Temperatura: ");
+//     Serial.println(temperature);
+//   }
+// }
+
+
+

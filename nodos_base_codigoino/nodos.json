@@ -1,0 +1,546 @@
+[
+    {
+        "id": "52f5cf7f48835e1d",
+        "type": "tab",
+        "label": "Flow 1",
+        "disabled": false,
+        "info": "",
+        "env": []
+    },
+    {
+        "id": "20e7e90a3ca8186b",
+        "type": "mqtt in",
+        "z": "52f5cf7f48835e1d",
+        "name": "esp32/temperatura",
+        "topic": "esp32/temperatura",
+        "qos": "2",
+        "datatype": "auto-detect",
+        "broker": "5fe7a798ab4711bd",
+        "nl": false,
+        "rap": true,
+        "rh": 0,
+        "inputs": 0,
+        "x": 230,
+        "y": 100,
+        "wires": [
+            [
+                "2350cf0d4b891b86",
+                "4c375b896c34d55a",
+                "c01f23158c5067e1",
+                "12ee842ce57806c4"
+            ]
+        ]
+    },
+    {
+        "id": "c01f23158c5067e1",
+        "type": "function",
+        "z": "52f5cf7f48835e1d",
+        "name": "INSERT",
+        "func": "if(msg.topic==\"esp32/temperatura\"){\n    msg.topic =\"INSERT INTO tbl_detalle_sensor(valor,cveSensor) VALUES(\"+msg.payload+\",1)\";\n}\n\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 480,
+        "y": 100,
+        "wires": [
+            [
+                "3d891d4b6572366f"
+            ]
+        ]
+    },
+    {
+        "id": "12ee842ce57806c4",
+        "type": "function",
+        "z": "52f5cf7f48835e1d",
+        "name": "SELECT",
+        "func": "msg.topic=\"select s.descripcion , DATE (ds.fechaRegistro) as fecha,AVG(ds.valor) as promedio\"\n    +\" from tbl_sensor s join tbl_detalle_sensor ds ON s.cveSensor = ds.cveSensor \"\n    +\" group by s.descripcion,date(ds.fechaRegistro) \"\n    + \" order by DATE (ds.fechaRegistro) DESC \";\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 480,
+        "y": 260,
+        "wires": [
+            [
+                "0f5d1de12b92307e"
+            ]
+        ]
+    },
+    {
+        "id": "07cf7dfdb7ddcc8c",
+        "type": "debug",
+        "z": "52f5cf7f48835e1d",
+        "name": "debug 1",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 840,
+        "y": 400,
+        "wires": []
+    },
+    {
+        "id": "2350cf0d4b891b86",
+        "type": "ui_gauge",
+        "z": "52f5cf7f48835e1d",
+        "name": "Temperatura",
+        "group": "55d9fdbbaa94d797",
+        "order": 1,
+        "width": 6,
+        "height": 5,
+        "gtype": "gage",
+        "title": "Temperatura",
+        "label": "",
+        "format": "{{value}} lpm",
+        "min": 0,
+        "max": "100",
+        "colors": [
+            "#009eb3",
+            "#e67a00",
+            "#ca3838"
+        ],
+        "seg1": "10",
+        "seg2": "40",
+        "diff": false,
+        "className": "",
+        "x": 490,
+        "y": 20,
+        "wires": []
+    },
+    {
+        "id": "4c375b896c34d55a",
+        "type": "ui_chart",
+        "z": "52f5cf7f48835e1d",
+        "name": "Historico",
+        "group": "9f30e8919ccfd91f",
+        "order": 1,
+        "width": 8,
+        "height": 5,
+        "label": "Historico",
+        "chartType": "line",
+        "legend": "false",
+        "xformat": "HH:mm",
+        "interpolate": "linear",
+        "nodata": "",
+        "dot": false,
+        "ymin": "0",
+        "ymax": "100",
+        "removeOlder": 1,
+        "removeOlderPoints": "",
+        "removeOlderUnit": "3600",
+        "cutout": 0,
+        "useOneColor": false,
+        "useUTC": false,
+        "colors": [
+            "#1f77b4",
+            "#aec7e8",
+            "#ff7f0e",
+            "#2ca02c",
+            "#98df8a",
+            "#d62728",
+            "#ff9896",
+            "#9467bd",
+            "#c5b0d5"
+        ],
+        "outputs": 1,
+        "useDifferentColor": false,
+        "className": "",
+        "x": 480,
+        "y": 180,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "3d891d4b6572366f",
+        "type": "mysql",
+        "z": "52f5cf7f48835e1d",
+        "mydb": "e158f4c04bf5b34a",
+        "name": "DB",
+        "x": 710,
+        "y": 100,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "6ef05a6bde90f7db",
+        "type": "mysql",
+        "z": "52f5cf7f48835e1d",
+        "mydb": "e158f4c04bf5b34a",
+        "name": "DB",
+        "x": 710,
+        "y": 100,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "0f5d1de12b92307e",
+        "type": "mysql",
+        "z": "52f5cf7f48835e1d",
+        "mydb": "e158f4c04bf5b34a",
+        "name": "DB",
+        "x": 610,
+        "y": 260,
+        "wires": [
+            [
+                "bc8fbc48355bc498"
+            ]
+        ]
+    },
+    {
+        "id": "bc8fbc48355bc498",
+        "type": "ui_table",
+        "z": "52f5cf7f48835e1d",
+        "group": "51e144f0d11392be",
+        "name": "Información",
+        "order": 1,
+        "width": "14",
+        "height": 5,
+        "columns": [
+            {
+                "field": "descripcion",
+                "title": "Sensor",
+                "width": "",
+                "align": "center",
+                "formatter": "plaintext",
+                "formatterParams": {
+                    "target": "_blank"
+                }
+            },
+            {
+                "field": "fecha",
+                "title": "Fecha ",
+                "width": "",
+                "align": "center",
+                "formatter": "plaintext",
+                "formatterParams": {
+                    "target": "_blank"
+                }
+            },
+            {
+                "field": "promedio",
+                "title": "Promedio",
+                "width": "",
+                "align": "center",
+                "formatter": "plaintext",
+                "formatterParams": {
+                    "target": "_blank"
+                }
+            }
+        ],
+        "outputs": 1,
+        "cts": true,
+        "x": 750,
+        "y": 260,
+        "wires": [
+            [
+                "07cf7dfdb7ddcc8c"
+            ]
+        ]
+    },
+    {
+        "id": "06ae83ffe9f93ee7",
+        "type": "mqtt in",
+        "z": "52f5cf7f48835e1d",
+        "name": "esp32/pulso",
+        "topic": "esp32/pulso",
+        "qos": "2",
+        "datatype": "auto-detect",
+        "broker": "5fe7a798ab4711bd",
+        "nl": false,
+        "rap": true,
+        "rh": 0,
+        "inputs": 0,
+        "x": 130,
+        "y": 380,
+        "wires": [
+            [
+                "d8161df14e1d6a35",
+                "634e3762782a9b56",
+                "7f83242abe45af66"
+            ]
+        ]
+    },
+    {
+        "id": "7f83242abe45af66",
+        "type": "function",
+        "z": "52f5cf7f48835e1d",
+        "name": "INSERT",
+        "func": "if(msg.topic==\"esp32/pulso\"){\n    msg.topic =\"INSERT INTO tbl_detalle_sensor(valor,cveSensor) VALUES(\"+msg.payload+\",2)\";\n}\n\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 400,
+        "y": 380,
+        "wires": [
+            [
+                "84bfe44f0ee127ec"
+            ]
+        ]
+    },
+    {
+        "id": "d8161df14e1d6a35",
+        "type": "ui_gauge",
+        "z": "52f5cf7f48835e1d",
+        "name": "Pulso",
+        "group": "55d9fdbbaa94d797",
+        "order": 1,
+        "width": 6,
+        "height": 5,
+        "gtype": "gage",
+        "title": "Pulsp",
+        "label": "",
+        "format": "{{value}} lpm",
+        "min": "40",
+        "max": "200",
+        "colors": [
+            "#009eb3",
+            "#e67a00",
+            "#ca3838"
+        ],
+        "seg1": "40",
+        "seg2": "100",
+        "diff": false,
+        "className": "",
+        "x": 390,
+        "y": 300,
+        "wires": []
+    },
+    {
+        "id": "634e3762782a9b56",
+        "type": "ui_chart",
+        "z": "52f5cf7f48835e1d",
+        "name": "Historico",
+        "group": "9f30e8919ccfd91f",
+        "order": 1,
+        "width": 8,
+        "height": 5,
+        "label": "Historico",
+        "chartType": "line",
+        "legend": "false",
+        "xformat": "HH:mm",
+        "interpolate": "linear",
+        "nodata": "",
+        "dot": false,
+        "ymin": "0",
+        "ymax": "100",
+        "removeOlder": 1,
+        "removeOlderPoints": "",
+        "removeOlderUnit": "3600",
+        "cutout": 0,
+        "useOneColor": false,
+        "useUTC": false,
+        "colors": [
+            "#1f77b4",
+            "#aec7e8",
+            "#ff7f0e",
+            "#2ca02c",
+            "#98df8a",
+            "#d62728",
+            "#ff9896",
+            "#9467bd",
+            "#c5b0d5"
+        ],
+        "outputs": 1,
+        "useDifferentColor": false,
+        "className": "",
+        "x": 400,
+        "y": 460,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "84bfe44f0ee127ec",
+        "type": "mysql",
+        "z": "52f5cf7f48835e1d",
+        "mydb": "e158f4c04bf5b34a",
+        "name": "DB",
+        "x": 630,
+        "y": 380,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "3792da60a11ca158",
+        "type": "mysql",
+        "z": "52f5cf7f48835e1d",
+        "mydb": "e158f4c04bf5b34a",
+        "name": "DB",
+        "x": 630,
+        "y": 380,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "e4b44736.07511",
+        "type": "ui_button",
+        "z": "52f5cf7f48835e1d",
+        "name": "Encender LED",
+        "group": "55d9fdbbaa94d797",
+        "order": 0,
+        "width": 0,
+        "height": 0,
+        "passthru": false,
+        "label": "Encender LED",
+        "tooltip": "",
+        "color": "",
+        "bgcolor": "",
+        "className": "",
+        "icon": "",
+        "payload": "ON",
+        "payloadType": "str",
+        "topic": "esp32/ledControl",
+        "topicType": "str",
+        "x": 360,
+        "y": 520,
+        "wires": [
+            [
+                "8c8d43f2.4fbb"
+            ]
+        ]
+    },
+    {
+        "id": "8c8d43f2.4fbb",
+        "type": "mqtt out",
+        "z": "52f5cf7f48835e1d",
+        "name": "",
+        "topic": "esp32/ledControl",
+        "qos": "",
+        "retain": "",
+        "respTopic": "",
+        "contentType": "",
+        "userProps": "",
+        "correl": "",
+        "expiry": "",
+        "broker": "5fe7a798ab4711bd",
+        "x": 630,
+        "y": 560,
+        "wires": []
+    },
+    {
+        "id": "be46d03f.54b48",
+        "type": "ui_button",
+        "z": "52f5cf7f48835e1d",
+        "name": "Apagar LED",
+        "group": "55d9fdbbaa94d797",
+        "order": 1,
+        "width": 0,
+        "height": 0,
+        "passthru": false,
+        "label": "Apagar LED",
+        "tooltip": "",
+        "color": "",
+        "bgcolor": "",
+        "className": "",
+        "icon": "",
+        "payload": "OFF",
+        "payloadType": "str",
+        "topic": "esp32/ledControl",
+        "topicType": "str",
+        "x": 360,
+        "y": 560,
+        "wires": [
+            [
+                "8c8d43f2.4fbb"
+            ]
+        ]
+    },
+    {
+        "id": "5fe7a798ab4711bd",
+        "type": "mqtt-broker",
+        "name": "local",
+        "broker": "127.0.0.1",
+        "port": "1883",
+        "clientid": "",
+        "autoConnect": true,
+        "usetls": false,
+        "protocolVersion": "4",
+        "keepalive": "60",
+        "cleansession": true,
+        "autoUnsubscribe": true,
+        "birthTopic": "",
+        "birthQos": "0",
+        "birthRetain": "false",
+        "birthPayload": "",
+        "birthMsg": {},
+        "closeTopic": "",
+        "closeQos": "0",
+        "closeRetain": "false",
+        "closePayload": "",
+        "closeMsg": {},
+        "willTopic": "",
+        "willQos": "0",
+        "willRetain": "false",
+        "willPayload": "",
+        "willMsg": {},
+        "userProps": "",
+        "sessionExpiry": ""
+    },
+    {
+        "id": "55d9fdbbaa94d797",
+        "type": "ui_group",
+        "name": "Datos en Tiempo Real",
+        "tab": "e22a1d6347b40c83",
+        "order": 1,
+        "disp": true,
+        "width": "6",
+        "collapse": true,
+        "className": ""
+    },
+    {
+        "id": "9f30e8919ccfd91f",
+        "type": "ui_group",
+        "name": "Historico",
+        "tab": "e22a1d6347b40c83",
+        "order": 2,
+        "disp": true,
+        "width": "8",
+        "collapse": false,
+        "className": ""
+    },
+    {
+        "id": "e158f4c04bf5b34a",
+        "type": "MySQLdatabase",
+        "name": "Servidor Local",
+        "host": "127.0.0.1",
+        "port": "3306",
+        "db": "iot_db",
+        "tz": "",
+        "charset": "UTF8"
+    },
+    {
+        "id": "51e144f0d11392be",
+        "type": "ui_group",
+        "name": "Informacion",
+        "tab": "e22a1d6347b40c83",
+        "order": 3,
+        "disp": true,
+        "width": "14",
+        "collapse": true,
+        "className": ""
+    },
+    {
+        "id": "e22a1d6347b40c83",
+        "type": "ui_tab",
+        "name": "Dispositivos Inteligentes",
+        "icon": "wifi_tethering",
+        "disabled": false,
+        "hidden": false
+    }
+]
